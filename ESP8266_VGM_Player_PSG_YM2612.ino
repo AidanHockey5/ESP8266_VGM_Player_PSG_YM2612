@@ -1,4 +1,5 @@
 //YM2612 & SN76489
+//PCM Buffering, playback, and seeking.
 #include "music.h"
 
 //Control bits (on control shift register)
@@ -21,6 +22,10 @@ const int controlLatch = D3;
 const int controlClock = D4; 
 const int controlData = D5;
 
+//YM DATA - Shift Register
+const int ymLatch = D6;
+const int ymClock = D7;
+const int ymData = D8; 
 
 //Timing Variables
 float singleSampleWait = 0;
@@ -40,8 +45,12 @@ void setup()
   pinMode(controlClock, OUTPUT);
   pinMode(controlData, OUTPUT);
 
-  ResetRegisters();
+  //Setup YM DATA 595
+  pinMode(ymLatch, OUTPUT);
+  pinMode(ymClock, OUTPUT);
+  pinMode(ymData, OUTPUT);
 
+  ResetRegisters();
 
   SN_WE(HIGH);
 
@@ -63,14 +72,49 @@ void SN_WE(bool state)
   SendControlReg(0, state);
 }
 
+void YM_IC(bool state)
+{
+  SendControlReg(1, state);
+}
+
+void YM_CS(bool state)
+{
+  SendControlReg(2, state);
+}
+
+void YM_WR(bool state)
+{
+  SendControlReg(3, state);
+}
+
+void YM_RD(bool state)
+{
+  SendControlReg(4, state);
+}
+
+void YM_A0(bool state)
+{
+  SendControlReg(5, state);
+}
+
+void YM_A1(bool state)
+{
+  SendControlReg(6, state);
+}
+
 void ResetRegisters()
 {
    digitalWrite(controlLatch, LOW);
    shiftOut(controlData, controlClock, MSBFIRST, 0x00);
    digitalWrite(controlLatch, LOW); 
+   
    digitalWrite(psgLatch, LOW);
    shiftOut(psgData, psgClock, MSBFIRST, 0x00);   
    digitalWrite(psgLatch, HIGH);
+
+   digitalWrite(ymLatch, LOW);
+   shiftOut(ymData, ymClock, MSBFIRST, 0x00);
+   digitalWrite(ymLatch, HIGH);   
 }
 
 uint8_t controlRegister = 0x00;
@@ -94,6 +138,20 @@ void SendSNByte(byte b) //Send 1-byte of data to PSG
   SN_WE(HIGH);
 }
 
+void SendYMByte(byte b)
+{
+  digitalWrite(ymLatch, LOW);
+  shiftOut(ymData, ymClock, MSBFIRST, b);
+  digitalWrite(ymLatch, HIGH);
+}
+
+void ShiftControlFast(byte b)
+{
+  digitalWrite(controlLatch, LOW);
+  shiftOut(controlData, controlClock, MSBFIRST, b);
+  digitalWrite(controlLatch, HIGH);
+}
+
 //Read music data from flash memory
 uint8 ICACHE_FLASH_ATTR read_rom_uint8(const uint8* addr)
 {
@@ -105,6 +163,7 @@ uint8 ICACHE_FLASH_ATTR read_rom_uint8(const uint8* addr)
 unsigned long parseLocation = 64; //Where we're currently looking in the music_data array. (64 = 0x40 = start of VGM music data)
 uint32_t lastWaitData = 0;
 float cachedWaitTime = 0;
+uint32_t PCMdataSize = 0;
 void ICACHE_FLASH_ATTR loop(void) 
 {
   switch(read_rom_uint8(&music_data[parseLocation])) //Use this switch statement to parse VGM commands
@@ -113,6 +172,59 @@ void ICACHE_FLASH_ATTR loop(void)
     parseLocation++;
     SendSNByte(read_rom_uint8(&music_data[parseLocation]));
     break;
+    
+    case 0x52:
+    {
+    parseLocation++;
+    uint8 address = read_rom_uint8(&music_data[parseLocation]);
+    parseLocation++;
+    uint8 data = read_rom_uint8(&music_data[parseLocation]);
+    YM_A1(LOW); //This may need to be changed to high
+    YM_A0(LOW);
+    YM_CS(LOW);
+    //ShiftControlFast(B00011010);
+    SendYMByte(address);
+    YM_WR(LOW);
+    //delayMicroseconds(1);
+    YM_WR(HIGH);
+    YM_CS(HIGH);
+    //delayMicroseconds(1);
+    YM_A0(HIGH);
+    YM_CS(HIGH);
+    SendYMByte(data);
+    YM_WR(LOW);
+    //delayMicroseconds(1);
+    YM_WR(HIGH);
+    YM_CS(HIGH);
+    }
+    break;
+    
+    case 0x53:
+    {
+    parseLocation++;
+    uint8 address = read_rom_uint8(&music_data[parseLocation]);
+    parseLocation++;
+    uint8 data = read_rom_uint8(&music_data[parseLocation]);
+    YM_A1(HIGH);
+    YM_A0(LOW);
+    YM_CS(LOW);
+    SendYMByte(address);
+    YM_WR(LOW);
+    //delayMicroseconds(1);
+    YM_WR(HIGH);
+    YM_CS(HIGH);
+    //delayMicroseconds(1);
+    YM_A0(HIGH);
+    YM_CS(LOW);
+    SendYMByte(data);
+    YM_WR(LOW);
+    //delayMicroseconds(1);
+    YM_WR(HIGH);
+    YM_CS(HIGH);
+    }
+    break;
+
+    
     case 0x61: 
     {
     uint32_t wait = 0;
@@ -136,6 +248,20 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x63:
     delay(WAIT50TH); //Actual time is 20ms (1/50 of a second)
     break;
+
+    case 0x67:
+    {
+      //Serial.println("DATA BLOCK 0x67");
+//      parseLocation+=3; //Skip 0x66 and data type
+//      PCMdataSize = 0;
+//      for ( int i = 0; i < 4; i++ ) 
+//      {
+//      PCMdataSize += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
+//      parseLocation++;
+//      }
+//      break;
+    }
+    
     case 0x70:
     case 0x71:
     case 0x72:
@@ -153,13 +279,40 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x7E:
     case 0x7F: 
     {
+      //Serial.println("0x7n WAIT");
       //There seems to be an issue with this wait function
-      uint32_t wait = read_rom_uint8(&music_data[parseLocation]) & 0x0F;
-      delay(1000/(44100/wait));
+      //uint32_t wait = read_rom_uint8(&music_data[parseLocation]) & 0x0F;
+      //delay(1000/(44100/wait));
     break;
     }
+    case 0x80:
+    case 0x81:
+    case 0x82:
+    case 0x83:
+    case 0x84:
+    case 0x85:
+    case 0x86:
+    case 0x87:
+    case 0x88:
+    case 0x89:
+    case 0x8A:
+    case 0x8B:
+    case 0x8C:
+    case 0x8D:
+    case 0x8E:
+    case 0x8F:
+       //Serial.println("PLAY DATA BLOCK 0x8n");
+      //parseLocation += PCMdataSize-1;
+      //playSample();
+      //uint8_t s = 0x00;
+      //s = command & 0x0F;
+      //while ( s-- > 0 ) delaySample();
+      break;
+    case 0xE0:
+           //Serial.println("PCM SEEK 0xE0");
+    break;
     case 0x66:
-    parseLocation = 64;
+    //parseLocation = 64;
     break;
   }
   parseLocation++;
