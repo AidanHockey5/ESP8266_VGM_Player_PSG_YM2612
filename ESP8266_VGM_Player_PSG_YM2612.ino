@@ -35,9 +35,26 @@ const float WAIT50TH = 1000 / (44100/882);
 uint8 pcmBuffer[7000];
 uint32_t pcmBufferPosition = 0;
 
+uint32_t loopOffset = 0;
+
+//Read music data from flash memory
+uint8 ICACHE_FLASH_ATTR read_rom_uint8(const uint8* addr)
+{
+    uint32 bytes;
+    bytes = *(uint32*)((uint32)addr & ~3);
+    return ((uint8*)&bytes)[(uint32)addr & 3];
+}
+
 void setup() 
 {
-  //Serial.begin(115200);
+  for ( int i = 0x1C; i < 0x1F; i++ )
+  {
+    loopOffset += uint32_t(read_rom_uint8(&music_data[i])) << ( 8 * i );
+  }
+
+  Serial.begin(115200);
+  Serial.print("Offset: ");
+  Serial.println(loopOffset);
   //Setup SN DATA 595
   pinMode(psgLatch, OUTPUT);
   pinMode(psgClock, OUTPUT);
@@ -165,13 +182,7 @@ void ShiftControlFast(byte b)
   digitalWrite(controlLatch, HIGH);
 }
 
-//Read music data from flash memory
-uint8 ICACHE_FLASH_ATTR read_rom_uint8(const uint8* addr)
-{
-    uint32 bytes;
-    bytes = *(uint32*)((uint32)addr & ~3);
-    return ((uint8*)&bytes)[(uint32)addr & 3];
-}
+
 
 unsigned long parseLocation = 64; //Where we're currently looking in the music_data array. (64 = 0x40 = start of VGM music data)
 uint32_t lastWaitData = 0;
@@ -393,12 +404,12 @@ void ICACHE_FLASH_ATTR loop(void)
       //Serial.println(pcmBufferPosition);    
     break;
     case 0x66:
-    parseLocation = 64;
+    parseLocation = loopOffset;
     break;
   }
   parseLocation++;
   if (parseLocation == music_length)
   {
-    parseLocation = 64;
+    parseLocation = loopOffset;
   }
 }
