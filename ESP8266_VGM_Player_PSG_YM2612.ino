@@ -164,7 +164,7 @@ void SendSNByte(byte b) //Send 1-byte of data to PSG
   shiftOut(psgData, psgClock, MSBFIRST, b);   
   digitalWrite(psgLatch, HIGH);
   SN_WE(LOW);
-  delay(1);
+  delayMicroseconds(5);
   SN_WE(HIGH);
 }
 
