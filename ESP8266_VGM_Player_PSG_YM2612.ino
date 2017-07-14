@@ -32,9 +32,12 @@ float singleSampleWait = 0;
 const float WAIT60TH = 1000 / (44100/735);
 const float WAIT50TH = 1000 / (44100/882);
 
+uint8 pcmBuffer[7000];
+uint32_t pcmBufferPosition = 0;
+
 void setup() 
 {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   //Setup SN DATA 595
   pinMode(psgLatch, OUTPUT);
   pinMode(psgClock, OUTPUT);
@@ -56,6 +59,16 @@ void setup()
 
   delay(500);
   SilenceAllChannels();
+  YM_A0(LOW);
+  YM_A1(LOW);
+  YM_CS(HIGH);
+  YM_WR(HIGH);
+  YM_RD(HIGH);
+  YM_IC(HIGH);
+  delay(10);
+  YM_IC(LOW);
+  delay(10);
+  YM_IC(HIGH);
   delay(500);
 }
 
@@ -163,7 +176,6 @@ uint8 ICACHE_FLASH_ATTR read_rom_uint8(const uint8* addr)
 unsigned long parseLocation = 64; //Where we're currently looking in the music_data array. (64 = 0x40 = start of VGM music data)
 uint32_t lastWaitData = 0;
 float cachedWaitTime = 0;
-uint32_t PCMdataSize = 0;
 void ICACHE_FLASH_ATTR loop(void) 
 {
   switch(read_rom_uint8(&music_data[parseLocation])) //Use this switch statement to parse VGM commands
@@ -179,7 +191,7 @@ void ICACHE_FLASH_ATTR loop(void)
     uint8 address = read_rom_uint8(&music_data[parseLocation]);
     parseLocation++;
     uint8 data = read_rom_uint8(&music_data[parseLocation]);
-    YM_A1(LOW); //This may need to be changed to high
+    YM_A1(LOW);
     YM_A0(LOW);
     YM_CS(LOW);
     //ShiftControlFast(B00011010);
@@ -190,7 +202,7 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_CS(HIGH);
     //delayMicroseconds(1);
     YM_A0(HIGH);
-    YM_CS(HIGH);
+    YM_CS(LOW);
     SendYMByte(data);
     YM_WR(LOW);
     //delayMicroseconds(1);
@@ -227,18 +239,23 @@ void ICACHE_FLASH_ATTR loop(void)
     
     case 0x61: 
     {
+      //Serial.print("0x61 WAIT: at location: ");
+      //Serial.print(parseLocation);
+      //Serial.print("  -- WAIT TIME: ");
     uint32_t wait = 0;
-    parseLocation++;
     for ( int i = 0; i < 2; i++ ) 
     {
-      wait += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
       parseLocation++;
+      wait += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
     }
     if(lastWaitData != wait) //Avoid doing lots of unnecessary division.
     {
       lastWaitData = wait;
+      if(wait == 0)
+        wait = 1;
       cachedWaitTime = 1000/(44100/wait);
     }
+    //Serial.println(cachedWaitTime);
     delay(cachedWaitTime);
     break;
     }
@@ -251,15 +268,34 @@ void ICACHE_FLASH_ATTR loop(void)
 
     case 0x67:
     {
-      //Serial.println("DATA BLOCK 0x67");
-//      parseLocation+=3; //Skip 0x66 and data type
-//      PCMdataSize = 0;
-//      for ( int i = 0; i < 4; i++ ) 
+      Serial.print("DATA BLOCK 0x67.  PCM Data Size: ");
+      parseLocation+=2; //Skip 0x66 and data type
+      pcmBufferPosition = parseLocation;
+      uint32_t PCMdataSize = 0;
+      for ( int i = 0; i < 4; i++ ) 
+      {
+      parseLocation++;
+      PCMdataSize += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
+      }
+      //Serial.println(PCMdataSize);
+      //parseLocation++;
+
+      for ( int i = 0; i < PCMdataSize; i++ ) 
+      {
+         parseLocation++;
+         //pcmBuffer[ i ] = read_rom_uint8(&music_data[parseLocation]); //Problem line
+      }
+      //Serial.println("Finished buffering PCM");
+      
+//      int i = 0;
+//      while(PCMdataSize --> 0)
 //      {
-//      PCMdataSize += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
-//      parseLocation++;
+//        pcmBuffer[i] = read_rom_uint8(&music_data[parseLocation]);
+//        parseLocation++;
+//        i++;
 //      }
-//      break;
+      break;
+      
     }
     
     case 0x70:
@@ -281,8 +317,15 @@ void ICACHE_FLASH_ATTR loop(void)
     {
       //Serial.println("0x7n WAIT");
       //There seems to be an issue with this wait function
-      //uint32_t wait = read_rom_uint8(&music_data[parseLocation]) & 0x0F;
-      //delay(1000/(44100/wait));
+      uint32_t wait = read_rom_uint8(&music_data[parseLocation]) & 0x0F;
+      //Serial.print("Wait value: ");
+      //Serial.println(wait);
+      //Serial.print("Wait Location: ");
+      //Serial.println(read_rom_uint8(&music_data[parseLocation]), HEX);
+      if(wait == 0)
+        break;
+      delay(1000/(44100/wait));
+
     break;
     }
     case 0x80:
@@ -301,18 +344,56 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x8D:
     case 0x8E:
     case 0x8F:
-       //Serial.println("PLAY DATA BLOCK 0x8n");
-      //parseLocation += PCMdataSize-1;
-      //playSample();
-      //uint8_t s = 0x00;
-      //s = command & 0x0F;
-      //while ( s-- > 0 ) delaySample();
+      {
+      //Serial.print("PLAY DATA BLOCK: ");
+      //Serial.print(read_rom_uint8(&music_data[parseLocation]), HEX);
+      //Serial.print("LOCATION: ");
+      //Serial.println(parseLocation, HEX);
+
+      uint32_t wait = read_rom_uint8(&music_data[parseLocation]) & 0x0F;
+      
+      uint8 address = 0x2A;
+      uint8 data = pcmBuffer[pcmBufferPosition++];
+      //pcmBufferPosition++;
+      YM_A1(LOW);
+      YM_A0(LOW);
+      YM_CS(LOW);
+      //ShiftControlFast(B00011010);
+      SendYMByte(address);
+      YM_WR(LOW);
+      //delayMicroseconds(1);
+      YM_WR(HIGH);
+      YM_CS(HIGH);
+      //delayMicroseconds(1);
+      YM_A0(HIGH);
+      YM_CS(LOW);
+      SendYMByte(data);
+      YM_WR(LOW);
+      //delayMicroseconds(1);
+      YM_WR(HIGH);
+      YM_CS(HIGH);
+
+      if(wait == 0)
+        wait = 1;
+      delay(1000/(44100/wait));
+      //delayMicroseconds(23*wait); //This is a temporary solution for a bigger delay problem.
+      }      
       break;
     case 0xE0:
-           //Serial.println("PCM SEEK 0xE0");
+      //Serial.print("LOCATION: ");
+      //Serial.print(parseLocation, HEX);
+      //Serial.print(" - PCM SEEK 0xE0. NEW POSITION: ");
+      pcmBufferPosition = 0;
+      //parseLocation++;
+      for ( int i = 0; i < 4; i++ ) 
+      {      
+        parseLocation++;
+        pcmBufferPosition += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
+      }
+      //Serial.println(pcmBufferPosition);    
     break;
     case 0x66:
-    //parseLocation = 64;
+    parseLocation = 64;
     break;
   }
   parseLocation++;
