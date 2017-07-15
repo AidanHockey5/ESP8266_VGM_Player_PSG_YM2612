@@ -29,10 +29,11 @@ const int ymData = D8;
 
 //Timing Variables
 float singleSampleWait = 0;
-const float WAIT60TH = 1000 / (44100/735);
-const float WAIT50TH = 1000 / (44100/882);
-
-uint8 pcmBuffer[7000];
+const int sampleRate = 44100; //44100
+const float WAIT60TH = 1000 / (sampleRate/735);
+const float WAIT50TH = 1000 / (sampleRate/882);
+#define MAX_PCM_BUFFER_SIZE 30000 //In bytes
+uint8_t pcmBuffer[MAX_PCM_BUFFER_SIZE];
 uint32_t pcmBufferPosition = 0;
 
 uint32_t loopOffset = 0;
@@ -51,10 +52,10 @@ void setup()
   {
     loopOffset += uint32_t(read_rom_uint8(&music_data[i])) << ( 8 * i );
   }
-
+  singleSampleWait = 1000/(sampleRate/1);
   Serial.begin(115200);
-  Serial.print("Offset: ");
-  Serial.println(loopOffset);
+  //Serial.print("Offset: ");
+  //Serial.println(loopOffset);
   //Setup SN DATA 595
   pinMode(psgLatch, OUTPUT);
   pinMode(psgClock, OUTPUT);
@@ -185,8 +186,13 @@ void ShiftControlFast(byte b)
 
 
 unsigned long parseLocation = 64; //Where we're currently looking in the music_data array. (64 = 0x40 = start of VGM music data)
-uint32_t lastWaitData = 0;
-float cachedWaitTime = 0;
+uint32_t lastWaitData61 = 0;
+uint32_t lastWaitData7n = 0;
+uint32_t lastWaitData8n = 0;
+
+float cachedWaitTime61 = 0;
+float cachedWaitTime7n = 0;
+float cachedWaitTime8n = 0;
 void ICACHE_FLASH_ATTR loop(void) 
 {
   switch(read_rom_uint8(&music_data[parseLocation])) //Use this switch statement to parse VGM commands
@@ -194,6 +200,7 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x50:
     parseLocation++;
     SendSNByte(read_rom_uint8(&music_data[parseLocation]));
+    delay(singleSampleWait);
     break;
     
     case 0x52:
@@ -220,6 +227,7 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_WR(HIGH);
     YM_CS(HIGH);
     }
+    delay(singleSampleWait);
     break;
     
     case 0x53:
@@ -245,6 +253,7 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_WR(HIGH);
     YM_CS(HIGH);
     }
+    delay(singleSampleWait);
     break;
 
     
@@ -259,15 +268,15 @@ void ICACHE_FLASH_ATTR loop(void)
       parseLocation++;
       wait += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
     }
-    if(lastWaitData != wait) //Avoid doing lots of unnecessary division.
+    if(lastWaitData61 != wait) //Avoid doing lots of unnecessary division.
     {
-      lastWaitData = wait;
+      lastWaitData61 = wait;
       if(wait == 0)
-        wait = 1;
-      cachedWaitTime = 1000/(44100/wait);
+        break;
+      cachedWaitTime61 = 1000/(sampleRate/wait);
     }
-    //Serial.println(cachedWaitTime);
-    delay(cachedWaitTime);
+    //Serial.println(cachedWaitTime61);
+    delay(cachedWaitTime61);
     break;
     }
     case 0x62:
@@ -279,7 +288,7 @@ void ICACHE_FLASH_ATTR loop(void)
 
     case 0x67:
     {
-      Serial.print("DATA BLOCK 0x67.  PCM Data Size: ");
+      //Serial.print("DATA BLOCK 0x67.  PCM Data Size: ");
       parseLocation+=2; //Skip 0x66 and data type
       pcmBufferPosition = parseLocation;
       uint32_t PCMdataSize = 0;
@@ -290,21 +299,15 @@ void ICACHE_FLASH_ATTR loop(void)
       }
       //Serial.println(PCMdataSize);
       //parseLocation++;
-
+      
       for ( int i = 0; i < PCMdataSize; i++ ) 
       {
          parseLocation++;
-         //pcmBuffer[ i ] = read_rom_uint8(&music_data[parseLocation]); //Problem line
+         if(PCMdataSize <= MAX_PCM_BUFFER_SIZE)
+            pcmBuffer[ i ] = (uint8_t)read_rom_uint8(&music_data[parseLocation]); 
       }
       //Serial.println("Finished buffering PCM");
       
-//      int i = 0;
-//      while(PCMdataSize --> 0)
-//      {
-//        pcmBuffer[i] = read_rom_uint8(&music_data[parseLocation]);
-//        parseLocation++;
-//        i++;
-//      }
       break;
       
     }
@@ -333,10 +336,14 @@ void ICACHE_FLASH_ATTR loop(void)
       //Serial.println(wait);
       //Serial.print("Wait Location: ");
       //Serial.println(read_rom_uint8(&music_data[parseLocation]), HEX);
+    if(lastWaitData7n != wait) //Avoid doing lots of unnecessary division.
+    {
+      lastWaitData7n = wait;
       if(wait == 0)
         break;
-      delay(1000/(44100/wait));
-
+      cachedWaitTime7n = 1000/(sampleRate/wait+1);
+    }
+      delay(cachedWaitTime7n);
     break;
     }
     case 0x80:
@@ -385,8 +392,15 @@ void ICACHE_FLASH_ATTR loop(void)
       YM_CS(HIGH);
 
       if(wait == 0)
-        wait = 1;
-      delay(1000/(44100/wait));
+        break;
+      if(lastWaitData8n != wait) //Avoid doing lots of unnecessary division.
+      {
+        lastWaitData8n = wait;
+        if(wait == 0)
+          break;
+        cachedWaitTime8n = 1000/(sampleRate/wait);
+      }
+      delay(cachedWaitTime8n);
       //delayMicroseconds(23*wait); //This is a temporary solution for a bigger delay problem.
       }      
       break;
