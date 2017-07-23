@@ -30,11 +30,17 @@ const int ymData = D8;
 //Timing Variables
 float singleSampleWait = 0;
 const int sampleRate = 44100; //44100
-const float WAIT60TH = 1000 / (sampleRate/735);
-const float WAIT50TH = 1000 / (sampleRate/882);
+const float WAIT60TH = ((1000.0 / (sampleRate/(float)735))*1000);  
+const float WAIT50TH = ((1000.0 / (sampleRate/(float)882))*1000);  
 uint32_t waitSamples = 0;
-float preCalced8nDelays[15];
-float preCalced7nDelays[15];
+unsigned long preCalced8nDelays[16];
+unsigned long preCalced7nDelays[16];
+unsigned long lastWaitData61 = 0;
+
+unsigned long cachedWaitTime61 = 0;
+
+unsigned long pauseTime = 0;
+unsigned long startTime = 0;
 
 //Song Data Variables
 #define MAX_PCM_BUFFER_SIZE 30000 //In bytes
@@ -42,7 +48,6 @@ uint8_t pcmBuffer[MAX_PCM_BUFFER_SIZE];
 uint32_t pcmBufferPosition = 0;
 uint8_t cmd;
 uint32_t loopOffset = 0;
-unsigned long parseLocation = 64; //Where we're currently looking in the music_data array. (64 = 0x40 = start of VGM music data)
 
 //File Stream
 File vgm;
@@ -50,10 +55,31 @@ const unsigned int MAX_CMD_BUFFER = 1000;
 char cmdBuffer[MAX_CMD_BUFFER];
 uint32_t bufferPos = 0;
 
+//SONG INFO
+const int NUMBER_OF_FILES = 6; //How many VGM files do you have stored in flash? (Files should be named (1.vgm, 2.vgm, 3.vgm, etc);
+int currentTrack = 1;
+
 void setup() 
 {
   SPIFFS.begin();
-  vgm = SPIFFS.open("/2.vgm", "r");
+  Serial.begin(115200);
+  StartupSequence();
+}
+
+void StartupSequence()
+{
+  waitSamples = 0;
+  loopOffset = 0;
+  lastWaitData61 = 0;
+  cachedWaitTime61 = 0;
+  pauseTime = 0;
+  startTime = 0;
+  cmd = 0;
+  ClearBuffers();
+  String track = "/"+String(currentTrack)+".vgm";
+  Serial.print("Opening track: ");
+  Serial.println(track);
+  vgm = SPIFFS.open(track, "r");
     if(!vgm)
       Serial.print("File open failed");
       
@@ -70,9 +96,9 @@ void setup()
     loopOffset += uint32_t(GetByte()) << ( 8 * i );
   }
   for ( int i = bufferPos; i < 0x40; i++ ) GetByte(); //Go to VGM data start
-  singleSampleWait = 1000/(sampleRate/1);
+  singleSampleWait = ((1000.0 / (sampleRate/(float)1))*1000);  
 
-  for(int i = 0; i<15; i++)
+  for(int i = 0; i<16; i++)
   {
     if(i == 0)
     {
@@ -80,14 +106,13 @@ void setup()
       preCalced7nDelays[i] = 1;
     }
     else
-    {
-      preCalced8nDelays[i] = 1000/(sampleRate/i);
-      preCalced7nDelays[i] = 1000/(sampleRate/i+1);
+    {  
+      preCalced8nDelays[i] = ((1000.0 / (sampleRate/(float)i))*1000);  
+      preCalced7nDelays[i] = ((1000.0 / (sampleRate/(float)i+1))*1000);  
     }
-
   }
 
-  Serial.begin(115200);
+  
   //Serial.print("Offset: ");
   //Serial.println(loopOffset);
   //Setup SN DATA 595
@@ -122,7 +147,6 @@ void setup()
   delay(10);
   YM_IC(HIGH);
   delay(500);
-
 }
 
 byte GetByte()
@@ -138,6 +162,16 @@ byte GetByte()
 void FillBuffer()
 {
     vgm.readBytes(cmdBuffer, MAX_CMD_BUFFER);
+}
+
+void ClearBuffers()
+{
+  pcmBufferPosition = 0;
+  bufferPos = 0;
+  for(int i = 0; i < MAX_CMD_BUFFER; i++)
+    cmdBuffer[i] = 0;
+  for(int i = 0; i < MAX_PCM_BUFFER_SIZE; i++)
+    pcmBuffer[i] = 0;
 }
 
 void SilenceAllChannels()
@@ -202,7 +236,6 @@ uint8_t controlRegister = 0x00;
 void SendControlReg(byte bitLocation, bool state)
 {
   state == HIGH ? controlRegister |= 1 << bitLocation : controlRegister &= ~(1 << bitLocation);
-  //controlRegister = ~(controlRegister & b);
   digitalWrite(controlLatch, LOW);
   shiftOut(controlData, controlClock, MSBFIRST, controlRegister);
   digitalWrite(controlLatch, HIGH);
@@ -215,7 +248,7 @@ void SendSNByte(byte b) //Send 1-byte of data to PSG
   shiftOut(psgData, psgClock, MSBFIRST, b);   
   digitalWrite(psgLatch, HIGH);
   SN_WE(LOW);
-  delayMicroseconds(5);
+  delayMicroseconds(1);
   SN_WE(HIGH);
 }
 
@@ -233,39 +266,43 @@ void ShiftControlFast(byte b)
   digitalWrite(controlLatch, HIGH);
 }
 
-
-
-uint32_t lastWaitData61 = 0;
-uint32_t lastWaitData7n = 0;
-uint32_t lastWaitData8n = 0;
-
-float cachedWaitTime61 = 0;
-float cachedWaitTime7n = 0;
-float cachedWaitTime8n = 0;
-
-uint32_t pcmWaitCount = 0;
-
-bool first = false;
 void ICACHE_FLASH_ATTR loop(void) 
 {
-  bool dataPrefetched = false;
+  while(Serial.available() > 0)
+  {
+    if(Serial.readString() == "+")
+    {
+      if(currentTrack + 1 > NUMBER_OF_FILES)
+        currentTrack = 1;
+      else
+        currentTrack++; 
+      vgm.close();
+      StartupSequence(); 
+    }
+  }
+         
+  
+  unsigned long timeInMicros = micros();
+  if( timeInMicros - startTime <= pauseTime)
+  {
+    return;
+  }
 
   cmd = GetByte();
   //Serial.println(cmd, HEX);
-
+  
   switch(cmd) //Use this switch statement to parse VGM commands
   {
     case 0x50:
-    parseLocation++;
     SendSNByte(GetByte());
-    delay(singleSampleWait);
+    startTime = timeInMicros;
+    pauseTime = singleSampleWait;
+    //delay(singleSampleWait);
     break;
     
     case 0x52:
     {
-    parseLocation++;
     uint8 address = GetByte();
-    parseLocation++;
     uint8 data = GetByte();
     YM_A1(LOW);
     YM_A0(LOW);
@@ -285,17 +322,14 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_WR(HIGH);
     YM_CS(HIGH);
     }
-    //parseLocation++;
-    //cmd = GetByte();
-    //dataPrefetched = true;
-    delay(singleSampleWait);
+    startTime = timeInMicros;
+    pauseTime = singleSampleWait;
+    //delay(singleSampleWait);
     break;
     
     case 0x53:
     {
-    parseLocation++;
     uint8 address = GetByte();
-    parseLocation++;
     uint8 data = GetByte();
     YM_A1(HIGH);
     YM_A0(LOW);
@@ -314,10 +348,9 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_WR(HIGH);
     YM_CS(HIGH);
     }
-    //parseLocation++;
-    //cmd = GetByte();
-    //dataPrefetched = true;
-    delay(singleSampleWait);
+    startTime = timeInMicros;
+    pauseTime = singleSampleWait;
+    //delay(singleSampleWait);
     break;
 
     
@@ -329,7 +362,6 @@ void ICACHE_FLASH_ATTR loop(void)
     uint32_t wait = 0;
     for ( int i = 0; i < 2; i++ ) 
     {
-      parseLocation++;
       wait += ( uint32_t( GetByte() ) << ( 8 * i ));
     }
     if(lastWaitData61 != wait) //Avoid doing lots of unnecessary division.
@@ -337,29 +369,25 @@ void ICACHE_FLASH_ATTR loop(void)
       lastWaitData61 = wait;
       if(wait == 0)
         break;
-      cachedWaitTime61 = 1000/(sampleRate/wait);
+      cachedWaitTime61 = ((1000.0 / (sampleRate/(float)wait))*1000);  
     }
     //Serial.println(cachedWaitTime61);
     
-    //parseLocation++;
-    //cmd = GetByte();
-    //dataPrefetched = true;
-    delay(cachedWaitTime61);
+    startTime = timeInMicros;
+    pauseTime = cachedWaitTime61;
+    //delay(cachedWaitTime61);
     break;
     }
     case 0x62:
-    //parseLocation++;
-    //cmd = GetByte();
-    //dataPrefetched = true;
-    delay(WAIT60TH); //Actual time is 16.67ms (1/60 of a second)
+    startTime = timeInMicros;
+    pauseTime = WAIT60TH;
+    //delay(WAIT60TH); //Actual time is 16.67ms (1/60 of a second)
     break;
     case 0x63:
-    //parseLocation++;
-    //cmd = GetByte();
-    //dataPrefetched = true;
-    delay(WAIT50TH); //Actual time is 20ms (1/50 of a second)
+    startTime = timeInMicros;
+    pauseTime = WAIT50TH;
+    //delay(WAIT50TH); //Actual time is 20ms (1/50 of a second)
     break;
-
     case 0x67:
     {
       //Serial.print("DATA BLOCK 0x67.  PCM Data Size: ");
@@ -369,22 +397,17 @@ void ICACHE_FLASH_ATTR loop(void)
       uint32_t PCMdataSize = 0;
       for ( int i = 0; i < 4; i++ ) 
       {
-      parseLocation++;
-      PCMdataSize += ( uint32_t( GetByte() ) << ( 8 * i ));
+        PCMdataSize += ( uint32_t( GetByte() ) << ( 8 * i ));
       }
       //Serial.println(PCMdataSize);
-      //parseLocation++;
       
       for ( int i = 0; i < PCMdataSize; i++ ) 
       {
-         parseLocation++;
          if(PCMdataSize <= MAX_PCM_BUFFER_SIZE)
             pcmBuffer[ i ] = (uint8_t)GetByte(); 
       }
       //Serial.println("Finished buffering PCM");
-      
       break;
-      
     }
     
     case 0x70:
@@ -405,23 +428,12 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x7F: 
     {
       //Serial.println("0x7n WAIT");
-      //There seems to be an issue with this wait function
       uint32_t wait = cmd & 0x0F;
       //Serial.print("Wait value: ");
       //Serial.println(wait);
-      //Serial.print("Wait Location: ");
-      //Serial.println(read_rom_uint8(&music_data[parseLocation]), HEX);
-//    if(lastWaitData7n != wait) //Avoid doing lots of unnecessary division.
-//    {
-//      lastWaitData7n = wait;
-//      if(wait == 0)
-//        break;
-//      cachedWaitTime7n = 1000/(sampleRate/wait+1);
-//    }
-      //parseLocation++;
-      //cmd = GetByte();
-      //dataPrefetched = true;
-      delay(preCalced7nDelays[wait]);
+      startTime = timeInMicros;
+      pauseTime = preCalced7nDelays[wait];
+      //delay(preCalced7nDelays[wait]);
     break;
     }
     case 0x80:
@@ -441,13 +453,7 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x8E:
     case 0x8F:
       {
-      //Serial.print("PLAY DATA BLOCK: ");
-      //Serial.print(read_rom_uint8(&music_data[parseLocation]), HEX);
-      //Serial.print("LOCATION: ");
-      //Serial.println(parseLocation, HEX);
-
       uint32_t wait = cmd & 0x0F;
-      
       uint8 address = 0x2A;
       uint8 data = pcmBuffer[pcmBufferPosition++];
       //pcmBufferPosition++;
@@ -468,11 +474,8 @@ void ICACHE_FLASH_ATTR loop(void)
       //delayMicroseconds(1);
       YM_WR(HIGH);
       YM_CS(HIGH);
-      
-      //parseLocation++;
-      //cmd = GetByte();
-      //dataPrefetched = true;
-      delay(preCalced8nDelays[wait]);
+      startTime = timeInMicros;
+      pauseTime = preCalced8nDelays[wait];
       //delayMicroseconds(23*wait); //This is a temporary solution for a bigger delay problem.
       }      
       break;
@@ -483,10 +486,8 @@ void ICACHE_FLASH_ATTR loop(void)
       //Serial.print(" - PCM SEEK 0xE0. NEW POSITION: ");
       
       pcmBufferPosition = 0;
-      //parseLocation++;
       for ( int i = 0; i < 4; i++ ) 
       {      
-        parseLocation++;
         pcmBufferPosition += ( uint32_t( GetByte() ) << ( 8 * i ));
       }
     }
@@ -500,15 +501,4 @@ void ICACHE_FLASH_ATTR loop(void)
     default:
     break;
   }
-//  if(!dataPrefetched)
-//  {
-//    parseLocation++;
-//    cmd = GetByte();
-//  }
-
-  if (parseLocation == music_length)
-  {
-    parseLocation = loopOffset;
-  }
-
 }
