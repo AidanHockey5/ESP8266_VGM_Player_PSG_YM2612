@@ -1,4 +1,5 @@
 //YM2612 & SN76489
+#include "FS.h"
 #include "music.h"
 
 //Control bits (on control shift register)
@@ -32,6 +33,8 @@ const int sampleRate = 44100; //44100
 const float WAIT60TH = 1000 / (sampleRate/735);
 const float WAIT50TH = 1000 / (sampleRate/882);
 uint32_t waitSamples = 0;
+float preCalced8nDelays[15];
+float preCalced7nDelays[15];
 
 //Song Data Variables
 #define MAX_PCM_BUFFER_SIZE 30000 //In bytes
@@ -41,25 +44,49 @@ uint8_t cmd;
 uint32_t loopOffset = 0;
 unsigned long parseLocation = 64; //Where we're currently looking in the music_data array. (64 = 0x40 = start of VGM music data)
 
-//Read music data from flash memory
-uint8 ICACHE_FLASH_ATTR read_rom_uint8(const uint8* addr)
-{
-    uint32 bytes;
-    bytes = *(uint32*)((uint32)addr & ~3);
-    return ((uint8*)&bytes)[(uint32)addr & 3];
-}
+//File Stream
+File vgm;
+const unsigned int MAX_CMD_BUFFER = 1000;
+char cmdBuffer[MAX_CMD_BUFFER];
+uint32_t bufferPos = 0;
 
 void setup() 
 {
-  for ( int i = 0x18; i < 0x1B; i++ )
+  SPIFFS.begin();
+  vgm = SPIFFS.open("/2.vgm", "r");
+    if(!vgm)
+      Serial.print("File open failed");
+      
+  FillBuffer();
+  for(int i = bufferPos; i<0x17; i++) GetByte(); //Ignore the unimportant VGM header data
+  
+  for ( int i = bufferPos; i < 0x1B; i++ ) //0x18->0x1B : Get wait Samples count
   {
-    waitSamples += uint32_t(read_rom_uint8(&music_data[i])) << ( 8 * i );
+    waitSamples += uint32_t(GetByte()) << ( 8 * i );
   }
-  for ( int i = 0x1C; i < 0x1F; i++ )
+
+  for ( int i = bufferPos; i < 0x1F; i++ ) //0x1C->0x1F : Get loop offset Postition
   {
-    loopOffset += uint32_t(read_rom_uint8(&music_data[i])) << ( 8 * i );
+    loopOffset += uint32_t(GetByte()) << ( 8 * i );
   }
+  for ( int i = bufferPos; i < 0x40; i++ ) GetByte(); //Go to VGM data start
   singleSampleWait = 1000/(sampleRate/1);
+
+  for(int i = 0; i<15; i++)
+  {
+    if(i == 0)
+    {
+      preCalced8nDelays[i] = 0;
+      preCalced7nDelays[i] = 1;
+    }
+    else
+    {
+      preCalced8nDelays[i] = 1000/(sampleRate/i);
+      preCalced7nDelays[i] = 1000/(sampleRate/i+1);
+    }
+
+  }
+
   Serial.begin(115200);
   //Serial.print("Offset: ");
   //Serial.println(loopOffset);
@@ -95,7 +122,22 @@ void setup()
   delay(10);
   YM_IC(HIGH);
   delay(500);
-  cmd = read_rom_uint8(&music_data[parseLocation]);
+
+}
+
+byte GetByte()
+{
+  if(bufferPos == MAX_CMD_BUFFER)
+  {
+    bufferPos = 0;
+    FillBuffer();
+  }
+  return cmdBuffer[bufferPos++];
+}
+
+void FillBuffer()
+{
+    vgm.readBytes(cmdBuffer, MAX_CMD_BUFFER);
 }
 
 void SilenceAllChannels()
@@ -203,25 +245,28 @@ float cachedWaitTime8n = 0;
 
 uint32_t pcmWaitCount = 0;
 
+bool first = false;
 void ICACHE_FLASH_ATTR loop(void) 
 {
   bool dataPrefetched = false;
 
+  cmd = GetByte();
+  //Serial.println(cmd, HEX);
 
   switch(cmd) //Use this switch statement to parse VGM commands
   {
     case 0x50:
     parseLocation++;
-    SendSNByte(read_rom_uint8(&music_data[parseLocation]));
+    SendSNByte(GetByte());
     delay(singleSampleWait);
     break;
     
     case 0x52:
     {
     parseLocation++;
-    uint8 address = read_rom_uint8(&music_data[parseLocation]);
+    uint8 address = GetByte();
     parseLocation++;
-    uint8 data = read_rom_uint8(&music_data[parseLocation]);
+    uint8 data = GetByte();
     YM_A1(LOW);
     YM_A0(LOW);
     YM_CS(LOW);
@@ -240,18 +285,18 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_WR(HIGH);
     YM_CS(HIGH);
     }
-    parseLocation++;
-    cmd = read_rom_uint8(&music_data[parseLocation]);
-    dataPrefetched = true;
+    //parseLocation++;
+    //cmd = GetByte();
+    //dataPrefetched = true;
     delay(singleSampleWait);
     break;
     
     case 0x53:
     {
     parseLocation++;
-    uint8 address = read_rom_uint8(&music_data[parseLocation]);
+    uint8 address = GetByte();
     parseLocation++;
-    uint8 data = read_rom_uint8(&music_data[parseLocation]);
+    uint8 data = GetByte();
     YM_A1(HIGH);
     YM_A0(LOW);
     YM_CS(LOW);
@@ -269,9 +314,9 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_WR(HIGH);
     YM_CS(HIGH);
     }
-    parseLocation++;
-    cmd = read_rom_uint8(&music_data[parseLocation]);
-    dataPrefetched = true;
+    //parseLocation++;
+    //cmd = GetByte();
+    //dataPrefetched = true;
     delay(singleSampleWait);
     break;
 
@@ -285,7 +330,7 @@ void ICACHE_FLASH_ATTR loop(void)
     for ( int i = 0; i < 2; i++ ) 
     {
       parseLocation++;
-      wait += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
+      wait += ( uint32_t( GetByte() ) << ( 8 * i ));
     }
     if(lastWaitData61 != wait) //Avoid doing lots of unnecessary division.
     {
@@ -296,35 +341,36 @@ void ICACHE_FLASH_ATTR loop(void)
     }
     //Serial.println(cachedWaitTime61);
     
-    parseLocation++;
-    cmd = read_rom_uint8(&music_data[parseLocation]);
-    dataPrefetched = true;
+    //parseLocation++;
+    //cmd = GetByte();
+    //dataPrefetched = true;
     delay(cachedWaitTime61);
     break;
     }
     case 0x62:
-    parseLocation++;
-    cmd = read_rom_uint8(&music_data[parseLocation]);
-    dataPrefetched = true;
+    //parseLocation++;
+    //cmd = GetByte();
+    //dataPrefetched = true;
     delay(WAIT60TH); //Actual time is 16.67ms (1/60 of a second)
     break;
     case 0x63:
-    parseLocation++;
-    cmd = read_rom_uint8(&music_data[parseLocation]);
-    dataPrefetched = true;
+    //parseLocation++;
+    //cmd = GetByte();
+    //dataPrefetched = true;
     delay(WAIT50TH); //Actual time is 20ms (1/50 of a second)
     break;
 
     case 0x67:
     {
       //Serial.print("DATA BLOCK 0x67.  PCM Data Size: ");
-      parseLocation+=2; //Skip 0x66 and data type
-      pcmBufferPosition = parseLocation;
+      GetByte(); 
+      GetByte(); //Skip 0x66 and data type
+      pcmBufferPosition = bufferPos;
       uint32_t PCMdataSize = 0;
       for ( int i = 0; i < 4; i++ ) 
       {
       parseLocation++;
-      PCMdataSize += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
+      PCMdataSize += ( uint32_t( GetByte() ) << ( 8 * i ));
       }
       //Serial.println(PCMdataSize);
       //parseLocation++;
@@ -333,7 +379,7 @@ void ICACHE_FLASH_ATTR loop(void)
       {
          parseLocation++;
          if(PCMdataSize <= MAX_PCM_BUFFER_SIZE)
-            pcmBuffer[ i ] = (uint8_t)read_rom_uint8(&music_data[parseLocation]); 
+            pcmBuffer[ i ] = (uint8_t)GetByte(); 
       }
       //Serial.println("Finished buffering PCM");
       
@@ -365,17 +411,17 @@ void ICACHE_FLASH_ATTR loop(void)
       //Serial.println(wait);
       //Serial.print("Wait Location: ");
       //Serial.println(read_rom_uint8(&music_data[parseLocation]), HEX);
-    if(lastWaitData7n != wait) //Avoid doing lots of unnecessary division.
-    {
-      lastWaitData7n = wait;
-      if(wait == 0)
-        break;
-      cachedWaitTime7n = 1000/(sampleRate/wait+1);
-    }
-      parseLocation++;
-      cmd = read_rom_uint8(&music_data[parseLocation]);
-      dataPrefetched = true;
-      delay(cachedWaitTime7n);
+//    if(lastWaitData7n != wait) //Avoid doing lots of unnecessary division.
+//    {
+//      lastWaitData7n = wait;
+//      if(wait == 0)
+//        break;
+//      cachedWaitTime7n = 1000/(sampleRate/wait+1);
+//    }
+      //parseLocation++;
+      //cmd = GetByte();
+      //dataPrefetched = true;
+      delay(preCalced7nDelays[wait]);
     break;
     }
     case 0x80:
@@ -422,21 +468,11 @@ void ICACHE_FLASH_ATTR loop(void)
       //delayMicroseconds(1);
       YM_WR(HIGH);
       YM_CS(HIGH);
-
-      if(wait == 0)
-        break;
-      if(lastWaitData8n != wait) //Avoid doing lots of unnecessary division.
-      {
-        lastWaitData8n = wait;
-        if(wait == 0)
-          break;
-        cachedWaitTime8n = 1000/(sampleRate/wait);
-        //cachedWaitTime8n = 44100 * ((pcmWaitCount/waitSamples)*wait);
-      }
-      parseLocation++;
-      cmd = read_rom_uint8(&music_data[parseLocation]);
-      dataPrefetched = true;
-      delay(cachedWaitTime8n);
+      
+      //parseLocation++;
+      //cmd = GetByte();
+      //dataPrefetched = true;
+      delay(preCalced8nDelays[wait]);
       //delayMicroseconds(23*wait); //This is a temporary solution for a bigger delay problem.
       }      
       break;
@@ -445,37 +481,30 @@ void ICACHE_FLASH_ATTR loop(void)
       //Serial.print("LOCATION: ");
       //Serial.print(parseLocation, HEX);
       //Serial.print(" - PCM SEEK 0xE0. NEW POSITION: ");
-
-      ///////////// This section may not be needed
-      pcmWaitCount = 0;
-      uint32_t pcmSeek = parseLocation+1; 
-      while((uint8_t)(read_rom_uint8(&music_data[pcmSeek]) != 0xE0))
-      {
-         pcmWaitCount++;
-         pcmSeek++;
-      }
-      //////////////
       
       pcmBufferPosition = 0;
       //parseLocation++;
       for ( int i = 0; i < 4; i++ ) 
       {      
         parseLocation++;
-        pcmBufferPosition += ( uint32_t( read_rom_uint8(&music_data[parseLocation]) ) << ( 8 * i ));
+        pcmBufferPosition += ( uint32_t( GetByte() ) << ( 8 * i ));
       }
     }
       //Serial.println(pcmBufferPosition);    
     break;
     case 0x66:
-    parseLocation = loopOffset;
-    
+    vgm.seek(loopOffset, SeekSet);
+    FillBuffer();
+    bufferPos = 0;
+    break;
+    default:
     break;
   }
-  if(!dataPrefetched)
-  {
-    parseLocation++;
-    cmd = read_rom_uint8(&music_data[parseLocation]);
-  }
+//  if(!dataPrefetched)
+//  {
+//    parseLocation++;
+//    cmd = GetByte();
+//  }
 
   if (parseLocation == music_length)
   {
