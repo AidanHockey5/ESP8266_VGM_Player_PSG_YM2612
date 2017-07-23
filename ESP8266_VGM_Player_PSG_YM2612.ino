@@ -21,6 +21,9 @@ const int psgData = D2;
 const int controlLatch = D3; 
 const int controlClock = D4; 
 const int controlData = D5;
+//const int controlLatch = D3; 
+//const int controlClock = D4; 
+//const int controlData = D5;
 
 //YM DATA - Shift Register
 const int ymLatch = D6;
@@ -133,7 +136,8 @@ void StartupSequence()
   ResetRegisters();
 
   SN_WE(HIGH);
-
+  SendControlReg();
+  
   delay(500);
   SilenceAllChannels();
   YM_A0(LOW);
@@ -142,10 +146,13 @@ void StartupSequence()
   YM_WR(HIGH);
   YM_RD(HIGH);
   YM_IC(HIGH);
+  SendControlReg();
   delay(10);
   YM_IC(LOW);
+  SendControlReg();
   delay(10);
   YM_IC(HIGH);
+  SendControlReg();
   delay(500);
 }
 
@@ -184,37 +191,38 @@ void SilenceAllChannels()
 
 void SN_WE(bool state)
 {
-  SendControlReg(0, state);
+  SetControlReg(0, state);
+  SendControlReg();
 }
 
 void YM_IC(bool state)
 {
-  SendControlReg(1, state);
+  SetControlReg(1, state);
 }
 
 void YM_CS(bool state)
 {
-  SendControlReg(2, state);
+  SetControlReg(2, state);
 }
 
 void YM_WR(bool state)
 {
-  SendControlReg(3, state);
+  SetControlReg(3, state);
 }
 
 void YM_RD(bool state)
 {
-  SendControlReg(4, state);
+  SetControlReg(4, state);
 }
 
 void YM_A0(bool state)
 {
-  SendControlReg(5, state);
+  SetControlReg(5, state);
 }
 
 void YM_A1(bool state)
 {
-  SendControlReg(6, state);
+  SetControlReg(6, state);
 }
 
 void ResetRegisters()
@@ -233,12 +241,16 @@ void ResetRegisters()
 }
 
 uint8_t controlRegister = 0x00;
-void SendControlReg(byte bitLocation, bool state)
+void SendControlReg()
 {
-  state == HIGH ? controlRegister |= 1 << bitLocation : controlRegister &= ~(1 << bitLocation);
   digitalWrite(controlLatch, LOW);
   shiftOut(controlData, controlClock, MSBFIRST, controlRegister);
   digitalWrite(controlLatch, HIGH);
+}
+
+void SetControlReg(byte bitLocation, bool state)
+{
+    state == HIGH ? controlRegister |= 1 << bitLocation : controlRegister &= ~(1 << bitLocation);
 }
 
 void SendSNByte(byte b) //Send 1-byte of data to PSG
@@ -307,20 +319,26 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_A1(LOW);
     YM_A0(LOW);
     YM_CS(LOW);
+    SendControlReg();
     //ShiftControlFast(B00011010);
     SendYMByte(address);
     YM_WR(LOW);
+    SendControlReg();
     //delayMicroseconds(1);
     YM_WR(HIGH);
     YM_CS(HIGH);
+    SendControlReg();
     //delayMicroseconds(1);
     YM_A0(HIGH);
     YM_CS(LOW);
+    SendControlReg();
     SendYMByte(data);
     YM_WR(LOW);
+    SendControlReg();
     //delayMicroseconds(1);
     YM_WR(HIGH);
     YM_CS(HIGH);
+    SendControlReg();
     }
     startTime = timeInMicros;
     pauseTime = singleSampleWait;
@@ -334,19 +352,25 @@ void ICACHE_FLASH_ATTR loop(void)
     YM_A1(HIGH);
     YM_A0(LOW);
     YM_CS(LOW);
+    SendControlReg();
     SendYMByte(address);
     YM_WR(LOW);
+    SendControlReg();
     //delayMicroseconds(1);
     YM_WR(HIGH);
     YM_CS(HIGH);
+    SendControlReg();
     //delayMicroseconds(1);
     YM_A0(HIGH);
     YM_CS(LOW);
+    SendControlReg();
     SendYMByte(data);
     YM_WR(LOW);
+    SendControlReg();
     //delayMicroseconds(1);
     YM_WR(HIGH);
     YM_CS(HIGH);
+    SendControlReg();
     }
     startTime = timeInMicros;
     pauseTime = singleSampleWait;
@@ -460,20 +484,26 @@ void ICACHE_FLASH_ATTR loop(void)
       YM_A1(LOW);
       YM_A0(LOW);
       YM_CS(LOW);
+      SendControlReg();
       //ShiftControlFast(B00011010);
       SendYMByte(address);
       YM_WR(LOW);
+      SendControlReg();
       //delayMicroseconds(1);
       YM_WR(HIGH);
       YM_CS(HIGH);
+      SendControlReg();
       //delayMicroseconds(1);
       YM_A0(HIGH);
       YM_CS(LOW);
+      SendControlReg();
       SendYMByte(data);
       YM_WR(LOW);
+      SendControlReg();
       //delayMicroseconds(1);
       YM_WR(HIGH);
       YM_CS(HIGH);
+      SendControlReg();
       startTime = timeInMicros;
       pauseTime = preCalced8nDelays[wait];
       //delayMicroseconds(23*wait); //This is a temporary solution for a bigger delay problem.
