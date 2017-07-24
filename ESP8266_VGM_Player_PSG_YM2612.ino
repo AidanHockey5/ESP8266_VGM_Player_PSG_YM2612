@@ -21,9 +21,6 @@ const int psgData = D2;
 const int controlLatch = D3; 
 const int controlClock = D4; 
 const int controlData = D5;
-//const int controlLatch = D3; 
-//const int controlClock = D4; 
-//const int controlData = D5;
 
 //YM DATA - Shift Register
 const int ymLatch = D6;
@@ -54,7 +51,7 @@ uint32_t loopOffset = 0;
 
 //File Stream
 File vgm;
-const unsigned int MAX_CMD_BUFFER = 1000;
+const unsigned int MAX_CMD_BUFFER = 3000;
 char cmdBuffer[MAX_CMD_BUFFER];
 uint32_t bufferPos = 0;
 
@@ -62,8 +59,33 @@ uint32_t bufferPos = 0;
 const int NUMBER_OF_FILES = 6; //How many VGM files do you have stored in flash? (Files should be named (1.vgm, 2.vgm, 3.vgm, etc);
 int currentTrack = 1;
 
+
 void setup() 
-{
+{  
+  pinMode(SS, OUTPUT);
+  for(int i = 0; i < 10; i++)
+  {
+    digitalWrite(SS, HIGH);
+    delay(150);
+    digitalWrite(SS, LOW);
+    delay(150);
+  }
+  
+  //Setup SN DATA 595
+  pinMode(psgLatch, OUTPUT);
+  pinMode(psgClock, OUTPUT);
+  pinMode(psgData, OUTPUT);
+
+  //Setup CONTROL 595
+  pinMode(controlLatch, OUTPUT);
+  pinMode(controlClock, OUTPUT);
+  pinMode(controlData, OUTPUT);
+
+  //Setup YM DATA 595
+  pinMode(ymLatch, OUTPUT);
+  pinMode(ymClock, OUTPUT);
+  pinMode(ymData, OUTPUT);
+  
   SPIFFS.begin();
   Serial.begin(115200);
   StartupSequence();
@@ -114,24 +136,6 @@ void StartupSequence()
       preCalced7nDelays[i] = ((1000.0 / (sampleRate/(float)i+1))*1000);  
     }
   }
-
-  
-  //Serial.print("Offset: ");
-  //Serial.println(loopOffset);
-  //Setup SN DATA 595
-  pinMode(psgLatch, OUTPUT);
-  pinMode(psgClock, OUTPUT);
-  pinMode(psgData, OUTPUT);
-
-  //Setup CONTROL 595
-  pinMode(controlLatch, OUTPUT);
-  pinMode(controlClock, OUTPUT);
-  pinMode(controlData, OUTPUT);
-
-  //Setup YM DATA 595
-  pinMode(ymLatch, OUTPUT);
-  pinMode(ymClock, OUTPUT);
-  pinMode(ymData, OUTPUT);
 
   ResetRegisters();
 
@@ -524,6 +528,8 @@ void ICACHE_FLASH_ATTR loop(void)
       //Serial.println(pcmBufferPosition);    
     break;
     case 0x66:
+    if(loopOffset == 0)
+      loopOffset = 64;
     vgm.seek(loopOffset, SeekSet);
     FillBuffer();
     bufferPos = 0;
