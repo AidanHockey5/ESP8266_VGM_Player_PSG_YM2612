@@ -48,6 +48,9 @@ uint8_t pcmBuffer[MAX_PCM_BUFFER_SIZE];
 uint32_t pcmBufferPosition = 0;
 uint8_t cmd;
 uint32_t loopOffset = 0;
+uint16_t loopCount = 0;
+uint16_t nextSongAfterXLoops = 3; 
+bool play = true;
 
 //File Stream
 File vgm;
@@ -99,6 +102,7 @@ void StartupSequence()
   cachedWaitTime61 = 0;
   pauseTime = 0;
   startTime = 0;
+  loopCount = 0;
   cmd = 0;
   ClearBuffers();
   String track = "/"+String(currentTrack)+".vgm";
@@ -138,24 +142,8 @@ void StartupSequence()
   }
 
   ResetRegisters();
-
-  SN_WE(HIGH);
-  SendControlReg();
-  
-  delay(500);
   SilenceAllChannels();
-  YM_A0(LOW);
-  YM_A1(LOW);
-  YM_CS(HIGH);
-  YM_WR(HIGH);
-  YM_RD(HIGH);
-  YM_IC(HIGH);
-  SendControlReg();
-  delay(10);
-  YM_IC(LOW);
-  SendControlReg();
-  delay(10);
-  YM_IC(HIGH);
+  SN_WE(HIGH);
   SendControlReg();
   delay(500);
 }
@@ -191,6 +179,20 @@ void SilenceAllChannels()
   SendSNByte(0xbf);
   SendSNByte(0xdf);
   SendSNByte(0xff);
+
+  YM_A0(LOW);
+  YM_A1(LOW);
+  YM_CS(HIGH);
+  YM_WR(HIGH);
+  YM_RD(HIGH);
+  YM_IC(HIGH);
+  SendControlReg();
+  delay(10);
+  YM_IC(LOW);
+  SendControlReg();
+  delay(10);
+  YM_IC(HIGH);
+  SendControlReg();
 }
 
 void SN_WE(bool state)
@@ -282,21 +284,71 @@ void ShiftControlFast(byte b)
   digitalWrite(controlLatch, HIGH);
 }
 
+void NextTrack()
+{
+  randomSeed(millis()); //Random human interation for seeding
+  if(currentTrack + 1 > NUMBER_OF_FILES)
+    currentTrack = 1;
+  else
+    currentTrack++; 
+  vgm.close();
+  StartupSequence(); 
+}
+
+void RandTrack()
+{
+  randomSeed(millis()); 
+  int rngTrack;
+  do
+  {
+    rngTrack = random(1, NUMBER_OF_FILES+1);
+  }while(currentTrack == rngTrack);
+  currentTrack = rngTrack;
+  vgm.close();
+  StartupSequence(); 
+}
+
+void PrevTrack()
+{
+  randomSeed(millis()); //Random human interation for seeding
+  if(currentTrack - 1 == 0)
+    currentTrack = NUMBER_OF_FILES;
+  else
+    currentTrack--; 
+  vgm.close();
+  StartupSequence();  
+}
+
 void ICACHE_FLASH_ATTR loop(void) 
 {
   while(Serial.available() > 0)
   {
-    if(Serial.readString() == "+")
+    char incomming = Serial.read();
+    if(incomming == '+') 
+      NextTrack();
+    if(incomming == '-') 
+      PrevTrack();
+    if(incomming == '*') 
     {
-      if(currentTrack + 1 > NUMBER_OF_FILES)
-        currentTrack = 1;
+      play = !play;
+      if(!play)
+      {
+         vgm.close();
+         SilenceAllChannels();
+         ResetRegisters();
+      }
       else
-        currentTrack++; 
-      vgm.close();
-      StartupSequence(); 
+      {
+        StartupSequence(); 
+      } 
     }
   }
-         
+
+  if(loopCount >= nextSongAfterXLoops)
+    RandTrack();
+  
+  if(!play)
+    return;
   
   unsigned long timeInMicros = micros();
   if( timeInMicros - startTime <= pauseTime)
@@ -530,6 +582,7 @@ void ICACHE_FLASH_ATTR loop(void)
     case 0x66:
     if(loopOffset == 0)
       loopOffset = 64;
+    loopCount++;
     vgm.seek(loopOffset, SeekSet);
     FillBuffer();
     bufferPos = 0;
