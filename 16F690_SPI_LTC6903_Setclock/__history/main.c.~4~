@@ -1,0 +1,19 @@
+#include <main.h>
+#USE SPI (MASTER, SPI1, MODE=0, BITS=16, STREAM=SPI_1, MSB_FIRST)
+
+#define byte unsigned char
+
+void SetFrqManual(unsigned int16 oct, unsigned int16 dac)
+{
+  byte CNF = 0b00000000;
+  unsigned int16 BitMap = (oct << 12) | (dac << 2) | CNF;
+  output_low(PIN_C6);
+  spi_xfer(BitMap); 
+  output_high(PIN_C6);
+}
+
+void main()
+{
+   delay_ms(1000); //Debug delay for instruments to start up.
+   SetFrqManual(11, 831); //3.58MHz
+}

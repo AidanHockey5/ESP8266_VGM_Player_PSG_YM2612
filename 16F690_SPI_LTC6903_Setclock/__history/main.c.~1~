@@ -1,0 +1,12 @@
+#include <main.h>
+#USE SPI (MASTER, SPI1, MODE=0, BITS=8, STREAM=SPI_1, MSB_FIRST)
+
+void main()
+{
+
+	while(TRUE)
+	{
+		//TODO: User Code
+	}
+
+}

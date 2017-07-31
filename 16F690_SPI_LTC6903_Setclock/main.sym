@@ -1,0 +1,70 @@
+004-005 @READ_PROGRAM_MEMORY8.P1
+004-005 @WRITE_PROGRAM_MEMORY8.P2
+015     CCP_1_LOW
+015     CCP_1
+016     CCP_1_HIGH
+020     @SCRATCH
+021     @SCRATCH
+021     _RETURN_
+022     @SCRATCH
+023     @SCRATCH
+024     SN_CLK
+025     YM_CLK
+026-027 SetFrqManual.oct
+026     @delay_ms1.P1
+028-029 SetFrqManual.dac
+02A     SetFrqManual.target
+02B     SetFrqManual.CNF
+02C-02D SetFrqManual.BitMap
+02E     @WRITEBITA.P1
+02E-02F @SPI_XFER_1_16.P2
+02E     SetFrqManual.@SCRATCH1
+02F     @WRITEBITA.P1
+02F     SetFrqManual.@SCRATCH2
+030-031 @WRITEBITA.P1
+10D-10E @READ_PROGRAM_MEMORY8.P1
+10D-10E @WRITE_PROGRAM_MEMORY8.P2
+11B.6   C2OUT
+11B.7   C1OUT
+
+ROM Allocation:
+000004  @WRITEBITA
+000024  @delay_ms1
+000038  @SPI_XFER_1_16
+00004D  SetFrqManual
+000085  MAIN
+000085  @cinit1
+0000AF  @cinit2
+
+Project Directory:
+    C:\Users\Aidan\MPLABXProjects\16F690_SPI\
+
+Project Files:
+    main.c                                                  [05-Jul-17 11:46  CRC=90C8C33A]
+    main.h                                                  [05-Jul-17 11:48  CRC=D872A938]
+    ..\..\..\..\Program Files (x86)\PICC\Devices\16F690.h   [03-Jul-13 15:28  CRC=9A186141]
+
+Source signature=9D6C2EF4
+
+Units:
+    main (main)
+
+Compiler Settings:
+    Processor:      PIC16F690
+    Pointer Size:   16
+    ADC Range:      0-65535
+    Opt Level:      9
+    Short,Int,Long: UNSIGNED: 1,8,16
+    Float,Double:   32,32
+
+Output Files:
+    XREF file:   main.xsym
+    Errors:      main.err
+    Ext Symbols: main.esym
+    INHX8:       main.hex
+    Symbols:     main.sym
+    List:        main.lst
+    Debug/COFF:  main.cof
+    Project:     main.ccspjt
+    Call Tree:   main.tre
+    Statistics:  main.STA

@@ -1,0 +1,17 @@
+ÀÄmain
+   ÀÄMAIN  0/98  Ram=0
+      ÃÄ@cinit1  (Inline)  Ram=0
+      ÃÄ@WRITEBITA  0/32  Ram=6
+      ÃÄ@WRITEBITA  0/32  Ram=6
+      ÃÄ@WRITEBITA  0/32  Ram=6
+      ÃÄ@WRITEBITA  0/32  Ram=6
+      ÃÄ@delay_ms1  0/20  Ram=1
+      ÃÄSetFrqManual  0/56  Ram=10
+      ³  ÃÄ@WRITEBITA  0/32  Ram=6
+      ³  ÃÄ@WRITEBITA  0/32  Ram=6
+      ³  ÃÄ@SPI_XFER_1_16  0/21  Ram=4
+      ³  ÃÄ@WRITEBITA  0/32  Ram=6
+      ³  ÀÄ@WRITEBITA  0/32  Ram=6
+      ÃÄ@delay_ms1  0/20  Ram=1
+      ÀÄSetFrqManual  0/56  Ram=10
+         ÀÄ*

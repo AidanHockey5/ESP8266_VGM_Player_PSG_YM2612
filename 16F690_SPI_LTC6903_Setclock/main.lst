@@ -1,0 +1,285 @@
+CCS PCM C Compiler, Version 5.008, 5967               05-Jul-17 11:53
+
+               Filename:   C:\Users\Aidan\MPLABXProjects\16F690_SPI\main.lst
+
+               ROM used:   231 words (6%)
+                           Largest free fragment is 2048
+               RAM used:   7 (3%) at main() level
+                           19 (7%) worst case
+               Stack used: 2 locations
+               Stack size: 8
+
+*
+0000:  MOVLW  00
+0001:  MOVWF  0A
+0002:  GOTO   085
+0003:  NOP
+.................... //16F690 
+.................... //#include <usb_serial.h> 
+.................... #include <main.h> 
+.................... #include <16F690.h> 
+.................... //////// Standard Header file for the PIC16F690 device //////////////// 
+.................... #device PIC16F690 
+0004:  MOVF   2E,W
+0005:  ANDLW  07
+0006:  MOVWF  20
+0007:  RRF    2E,W
+0008:  MOVWF  21
+0009:  RRF    21,F
+000A:  RRF    21,F
+000B:  MOVLW  1F
+000C:  ANDWF  21,F
+000D:  MOVF   21,W
+000E:  ADDWF  30,W
+000F:  MOVWF  04
+0010:  BCF    03.7
+0011:  BTFSC  31.0
+0012:  BSF    03.7
+0013:  CLRF   21
+0014:  INCF   21,F
+0015:  INCF   20,F
+0016:  GOTO   018
+0017:  RLF    21,F
+0018:  DECFSZ 20,F
+0019:  GOTO   017
+001A:  MOVF   2F,F
+001B:  BTFSC  03.2
+001C:  GOTO   020
+001D:  MOVF   21,W
+001E:  IORWF  00,F
+001F:  GOTO   023
+0020:  COMF   21,F
+0021:  MOVF   21,W
+0022:  ANDWF  00,F
+0023:  RETURN
+....................  
+.................... #list 
+....................  
+.................... #device ADC=16 
+....................  
+.................... #FUSES NOWDT                    //No Watch Dog Timer 
+.................... #FUSES NOBROWNOUT               //No brownout reset 
+....................  
+.................... #use delay(internal=8MHz) 
+0024:  MOVLW  26
+0025:  MOVWF  04
+0026:  BCF    03.7
+0027:  MOVF   00,W
+0028:  BTFSC  03.2
+0029:  GOTO   037
+002A:  MOVLW  02
+002B:  MOVWF  21
+002C:  CLRF   20
+002D:  DECFSZ 20,F
+002E:  GOTO   02D
+002F:  DECFSZ 21,F
+0030:  GOTO   02C
+0031:  MOVLW  97
+0032:  MOVWF  20
+0033:  DECFSZ 20,F
+0034:  GOTO   033
+0035:  DECFSZ 00,F
+0036:  GOTO   02A
+0037:  RETURN
+....................  
+....................  
+.................... #USE SPI (MASTER, SPI1, MODE=0, BITS=16, STREAM=SPI_1, MSB_FIRST) 
+0038:  MOVF   13,W
+0039:  MOVF   2F,W
+003A:  MOVWF  13
+003B:  BSF    03.5
+003C:  RRF    14,W
+003D:  BTFSS  03.0
+003E:  GOTO   03C
+003F:  BCF    03.5
+0040:  MOVF   13,W
+0041:  MOVWF  22
+0042:  MOVF   2E,W
+0043:  MOVWF  13
+0044:  BSF    03.5
+0045:  RRF    14,W
+0046:  BTFSS  03.0
+0047:  GOTO   045
+0048:  BCF    03.5
+0049:  MOVF   13,W
+004A:  MOVWF  21
+004B:  BCF    0A.3
+004C:  GOTO   076 (RETURN)
+....................  
+.................... unsigned char SN_CLK = PIN_C6; 
+.................... unsigned char YM_CLK = PIN_C5; 
+....................  
+.................... void SetFrqManual(unsigned int16 oct, unsigned int16 dac, unsigned char target) 
+004D:  CLRF   2B
+004E:  SWAPF  26,W
+004F:  MOVWF  2F
+0050:  CLRF   2E
+0051:  MOVLW  F0
+0052:  ANDWF  2F,F
+0053:  RLF    28,W
+0054:  MOVWF  22
+0055:  RLF    29,W
+0056:  MOVWF  23
+0057:  RLF    22,F
+0058:  RLF    23,F
+0059:  MOVLW  FC
+005A:  ANDWF  22,F
+005B:  MOVF   22,W
+005C:  IORWF  2E,F
+005D:  MOVF   23,W
+005E:  IORWF  2F,F
+005F:  MOVF   2E,W
+0060:  IORWF  2B,W
+0061:  MOVWF  2C
+0062:  MOVF   2F,W
+0063:  MOVWF  2D
+.................... { 
+....................   byte CNF = 0b00000000; 
+....................   unsigned int16 BitMap = (oct << 12) | (dac << 2) | CNF; 
+....................   output_low(target); 
+0064:  MOVF   2A,W
+0065:  MOVWF  2E
+0066:  CLRF   2F
+0067:  CLRF   31
+0068:  CLRF   30
+0069:  CALL   004
+006A:  MOVF   2A,W
+006B:  MOVWF  2E
+006C:  CLRF   2F
+006D:  CLRF   31
+006E:  MOVLW  80
+006F:  MOVWF  30
+0070:  CALL   004
+....................   spi_xfer(BitMap);  
+0071:  MOVF   2D,W
+0072:  MOVWF  2F
+0073:  MOVF   2C,W
+0074:  MOVWF  2E
+0075:  GOTO   038
+....................   output_high(target); 
+0076:  MOVF   2A,W
+0077:  MOVWF  2E
+0078:  MOVLW  01
+0079:  MOVWF  2F
+007A:  CLRF   31
+007B:  CLRF   30
+007C:  CALL   004
+007D:  MOVF   2A,W
+007E:  MOVWF  2E
+007F:  CLRF   2F
+0080:  CLRF   31
+0081:  MOVLW  80
+0082:  MOVWF  30
+0083:  CALL   004
+0084:  RETURN
+.................... } 
+....................  
+.................... void main() 
+0085:  MOVF   03,W
+0086:  ANDLW  1F
+0087:  MOVWF  03
+0088:  MOVLW  71
+0089:  BSF    03.5
+008A:  MOVWF  0F
+008B:  MOVF   0F,W
+008C:  BCF    03.5
+008D:  BCF    14.5
+008E:  MOVLW  40
+008F:  BSF    03.5
+0090:  MOVWF  14
+0091:  MOVLW  20
+0092:  BCF    03.5
+0093:  MOVWF  14
+0094:  BSF    03.5
+0095:  BCF    07.7
+0096:  BSF    06.4
+0097:  BCF    06.6
+0098:  MOVLW  3E
+0099:  BCF    03.5
+009A:  MOVWF  24
+009B:  MOVLW  3D
+009C:  MOVWF  25
+009D:  BSF    03.6
+009E:  BCF    1F.0
+009F:  BCF    1F.1
+00A0:  BCF    1F.2
+00A1:  BCF    1F.3
+00A2:  BCF    03.6
+00A3:  BCF    1F.6
+00A4:  MOVLW  00
+00A5:  BSF    03.6
+00A6:  MOVWF  1E
+00A7:  CLRF   19
+00A8:  CLRF   1A
+00A9:  BSF    03.5
+00AA:  CLRF   1E
+00AB:  BCF    03.5
+00AC:  CLRF   1B
+00AD:  BCF    03.6
+00AE:  BCF    0D.5
+00AF:  BCF    03.7
+.................... { 
+....................    output_high(SN_CLK); output_high(YM_CLK); 
+00B0:  MOVF   24,W
+00B1:  MOVWF  2E
+00B2:  MOVLW  01
+00B3:  MOVWF  2F
+00B4:  CLRF   31
+00B5:  CLRF   30
+00B6:  CALL   004
+00B7:  MOVF   24,W
+00B8:  MOVWF  2E
+00B9:  CLRF   2F
+00BA:  CLRF   31
+00BB:  MOVLW  80
+00BC:  MOVWF  30
+00BD:  CALL   004
+00BE:  MOVF   25,W
+00BF:  MOVWF  2E
+00C0:  MOVLW  01
+00C1:  MOVWF  2F
+00C2:  CLRF   31
+00C3:  CLRF   30
+00C4:  CALL   004
+00C5:  MOVF   25,W
+00C6:  MOVWF  2E
+00C7:  CLRF   2F
+00C8:  CLRF   31
+00C9:  MOVLW  80
+00CA:  MOVWF  30
+00CB:  CALL   004
+....................    delay_ms(50); //Debug delay for instruments to start up. 
+00CC:  MOVLW  32
+00CD:  MOVWF  26
+00CE:  CALL   024
+....................    SetFrqManual(12, 912, YM_CLK); //3.58MHz 
+00CF:  CLRF   27
+00D0:  MOVLW  0C
+00D1:  MOVWF  26
+00D2:  MOVLW  03
+00D3:  MOVWF  29
+00D4:  MOVLW  90
+00D5:  MOVWF  28
+00D6:  MOVF   25,W
+00D7:  MOVWF  2A
+00D8:  CALL   04D
+....................    delay_ms(50); 
+00D9:  MOVLW  32
+00DA:  MOVWF  26
+00DB:  CALL   024
+....................    SetFrqManual(11, 831, SN_CLK); //3.58MHz 
+00DC:  CLRF   27
+00DD:  MOVLW  0B
+00DE:  MOVWF  26
+00DF:  MOVLW  03
+00E0:  MOVWF  29
+00E1:  MOVLW  3F
+00E2:  MOVWF  28
+00E3:  MOVF   24,W
+00E4:  MOVWF  2A
+00E5:  CALL   04D
+.................... } 
+00E6:  SLEEP
+
+Configuration Fuses:
+   Word  1: 3CE4   INTRC_IO NOWDT PUT MCLR NOPROTECT NOCPD NOBROWNOUT IESO FCMEN
