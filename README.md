@@ -18,6 +18,7 @@ http://www.smspower.org/uploads/Music/vgmspec170.txt?sid=58da937e68300c059412b53
 
 # Hooking Everything Up
 Because of limited IO on the ESP8266, I needed to control the sound chips via SN74HC595 shift registers. There are three shift registers: One for PSG data, one for YM2612 data, and one for controlling both chips. There is also two LTC6903 programmable oscillators that are programmed on power-up by a PIC16F690 chip. You don't need to use these specific chips for clocking, you just need to generate a 7.67 MHz signal for the YM2612 and a 3.58 MHz signal for the PSG. Crystals in these frequencies may be tricky to find, hence the LTC6903's.
+I also reccomend heavy power filtering with large value capacitors (1000uF-2200uF), especially near the super sensitive YM2612 power pins. These old chips are power hogs, so external power will be required on top of plugging in the ESP8266 to USB.
 
 Here is how to connect the ESP8266 to the shift registers:
 
