@@ -56,7 +56,7 @@ QA-QH | D0-D7
 
 Connect the control register like this:
 
-YM2612 Data Shift Register | PSG & YM2612
+Control Shift Register | PSG & YM2612
 ------------ | -------------
 QA | PSG WE
 QB | YM2612 IC
