@@ -65,7 +65,7 @@ QD | YM2612 WR
 QE | YM2612 RD
 QF | YM2612 A0
 QG | YM2612 A1
-QB | NO CONNECTION
+QH | NO CONNECTION
 
 Clock hookups and other supporting connections can be viewed in the schematic below.
 
