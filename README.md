@@ -76,6 +76,8 @@ Clock hookups and other supporting connections can be viewed in the schematic be
 
 [Vector version here](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/blob/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.sch.svg)
 
+[PDF](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/blob/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.pdf)
+
 I did not include the LEDs in this schematic for simplicities sake. If you want them, just wire up the LEDs on the same pins as the shift register outputs with 220 OHM resistors in series. 
 
 # ESP8266 Compile Settings

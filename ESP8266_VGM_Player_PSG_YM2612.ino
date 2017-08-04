@@ -1,6 +1,5 @@
 //YM2612 & SN76489
 #include "FS.h"
-#include "music.h"
 
 //Control bits (on control shift register)
 // SN_WE = QA (bit 0, pin 15)
@@ -43,7 +42,7 @@ unsigned long pauseTime = 0;
 unsigned long startTime = 0;
 
 //Song Data Variables
-#define MAX_PCM_BUFFER_SIZE 30000 //In bytes
+#define MAX_PCM_BUFFER_SIZE 40000 //In bytes
 uint8_t pcmBuffer[MAX_PCM_BUFFER_SIZE];
 uint32_t pcmBufferPosition = 0;
 uint8_t cmd;
@@ -59,9 +58,8 @@ char cmdBuffer[MAX_CMD_BUFFER];
 uint32_t bufferPos = 0;
 
 //SONG INFO
-const int NUMBER_OF_FILES = 6; //How many VGM files do you have stored in flash? (Files should be named (1.vgm, 2.vgm, 3.vgm, etc);
+const int NUMBER_OF_FILES = 10; //How many VGM files do you have stored in flash? (Files should be named (1.vgm, 2.vgm, 3.vgm, etc);
 int currentTrack = 1;
-
 
 void setup() 
 {  
@@ -137,7 +135,7 @@ void StartupSequence()
     else
     {  
       preCalced8nDelays[i] = ((1000.0 / (sampleRate/(float)i))*1000);  
-      preCalced7nDelays[i] = ((1000.0 / (sampleRate/(float)i+1))*1000);  
+      preCalced7nDelays[i] = ((1000.0 / (sampleRate/(float)i+1))*1000);  //+1 is spec-accurate; however, on this hardware, it sounds better without it.
     }
   }
 
