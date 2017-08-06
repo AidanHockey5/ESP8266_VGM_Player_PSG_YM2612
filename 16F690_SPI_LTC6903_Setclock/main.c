@@ -19,7 +19,7 @@ void main()
 {
    output_high(SN_CLK); output_high(YM_CLK);
    delay_ms(50); //Debug delay for instruments to start up.
-   SetFrqManual(12, 912, YM_CLK); //3.58MHz
+   SetFrqManual(12, 912, YM_CLK); //7.67MHz
    delay_ms(50);
    SetFrqManual(11, 831, SN_CLK); //3.58MHz
 }
