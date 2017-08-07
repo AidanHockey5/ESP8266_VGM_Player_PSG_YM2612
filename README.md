@@ -2,6 +2,8 @@
 
 Video of this project in action can be seen here: https://youtu.be/KguRHrbGrXg
 
+More information can be found here: http://www.aidanlawrence.com/hardware-sega-genesis-video-game-music-player/
+
 A VGM (Video Game Music) player featuring the YM2612 and SN76489 PSG from the Sega Genesis. I use a NodeMCU board to host the ESP8266
 
 This project is an extention of my previous [PSG-only VGM player.](https://github.com/AidanHockey5/ESP8266_VGM_Player) 
