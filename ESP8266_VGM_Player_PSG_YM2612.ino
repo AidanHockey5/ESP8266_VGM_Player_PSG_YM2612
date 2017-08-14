@@ -63,15 +63,6 @@ int currentTrack = 1;
 
 void setup() 
 {  
-  pinMode(SS, OUTPUT);
-  for(int i = 0; i < 10; i++)
-  {
-    digitalWrite(SS, HIGH);
-    delay(150);
-    digitalWrite(SS, LOW);
-    delay(150);
-  }
-  
   //Setup SN DATA 595
   pinMode(psgLatch, OUTPUT);
   pinMode(psgClock, OUTPUT);
