@@ -28,9 +28,6 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
-LIBS:nodemcu
-LIBS:ym2612
-LIBS:microchip_pic16mcu
 LIBS:ESP8266_YM2612_SN76489_VGM_Player-cache
 EELAYER 25 0
 EELAYER END
@@ -1385,4 +1382,10 @@ Wire Wire Line
 	6850 700  6850 750 
 Wire Wire Line
 	6850 750  6750 750 
+Text GLabel 3250 3550 0    59   Input ~ 0
++5V
+Text GLabel 3250 2250 0    59   Input ~ 0
++5V
+Text GLabel 3250 950  0    59   Input ~ 0
++5V
 $EndSCHEMATC
