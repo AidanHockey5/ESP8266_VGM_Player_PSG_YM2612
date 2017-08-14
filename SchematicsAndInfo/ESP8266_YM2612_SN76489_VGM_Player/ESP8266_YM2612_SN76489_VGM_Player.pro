@@ -1,4 +1,4 @@
-update=8/3/2017 7:48:23 PM
+update=Mon 14 Aug 2017 10:29:54 AM PDT
 version=1
 last_client=kicad
 [pcbnew]
@@ -66,7 +66,7 @@ LibName34=D:/KiCAD_Libraries/library/microchip_pic16mcu
 [schematic_editor]
 version=1
 PageLayoutDescrFile=
-PlotDirectoryName=C:/Users/Aidan/Documents/Arduino/ESP8266_VGM_Player_PSG_YM2612/SchematicsAndInfo
+PlotDirectoryName=../
 SubpartIdSeparator=0
 SubpartFirstId=65
 NetFmtName=
