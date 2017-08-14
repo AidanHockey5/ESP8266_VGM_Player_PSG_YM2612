@@ -74,9 +74,9 @@ Clock hookups and other supporting connections can be viewed in the schematic be
 ---------------------------------------------------------------------------------------------------------------
 
 # Schematic
-![Schematic](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.sch.png)
+![Schematic](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.svg.png)
 
-[Vector version here](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.sch.svg)
+[Vector version here](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.svg)
 
 [PDF](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.pdf)
 
