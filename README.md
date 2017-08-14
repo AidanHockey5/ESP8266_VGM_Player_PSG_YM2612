@@ -1,4 +1,4 @@
-# ESP8266_VGM_Player_PSG_YM2612
+# ESP8266 VGM Player PSG YM2612
 
 Video of this project in action can be seen here: https://youtu.be/KguRHrbGrXg
 
