@@ -11,20 +11,20 @@
 // YM_A1 = QG (bit 6, pin 6)
 // NO CONNECT = QH (bit 7, pin 7)
 
-//PSG DATA - Shift Register 
-const int psgLatch = D0;
-const int psgClock = D1;
-const int psgData = D2;
+//YM DATA - Shift Register
+const int ymLatch = D0;
+const int ymClock = D1;
+const int ymData = D2; 
 
 //Control Shift Register
 const int controlLatch = D3; 
 const int controlClock = D4; 
 const int controlData = D5;
 
-//YM DATA - Shift Register
-const int ymLatch = D6;
-const int ymClock = D7;
-const int ymData = D8; 
+//PSG DATA - Shift Register 
+const int psgLatch = D6;
+const int psgClock = D7;
+const int psgData = D8;
 
 //Timing Variables
 float singleSampleWait = 0;
@@ -58,20 +58,11 @@ char cmdBuffer[MAX_CMD_BUFFER];
 uint32_t bufferPos = 0;
 
 //SONG INFO
-const int NUMBER_OF_FILES = 10; //How many VGM files do you have stored in flash? (Files should be named (1.vgm, 2.vgm, 3.vgm, etc);
+const int NUMBER_OF_FILES = 8; //How many VGM files do you have stored in flash? (Files should be named (1.vgm, 2.vgm, 3.vgm, etc);
 int currentTrack = 1;
 
 void setup() 
 {  
-  pinMode(SS, OUTPUT);
-  for(int i = 0; i < 10; i++)
-  {
-    digitalWrite(SS, HIGH);
-    delay(150);
-    digitalWrite(SS, LOW);
-    delay(150);
-  }
-  
   //Setup SN DATA 595
   pinMode(psgLatch, OUTPUT);
   pinMode(psgClock, OUTPUT);

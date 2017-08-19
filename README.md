@@ -22,7 +22,7 @@ I also reccomend heavy power filtering with large value capacitors (1000uF-2200u
 
 Here is how to connect the ESP8266 to the shift registers:
 
-ESP8266 | PSG Data Shift Register
+ESP8266 | YM2612 Data Shift Register
 ------------ | -------------
 D0 | Latch (12)
 D1 | SRClock (11)
@@ -34,11 +34,12 @@ D3 | Latch (12)
 D4 | SRClock (11)
 D5 | SERdata (14)
 
-ESP8266 | YM2612 Data Shift Register
+ESP8266 | PSG Data Shift Register
 ------------ | -------------
 D6 | Latch (12)
 D7 | SRClock (11)
 D8 | SERdata (14)
+
 
 ---------------------------------------------------------------------------------------------------------------
 
