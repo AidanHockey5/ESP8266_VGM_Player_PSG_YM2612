@@ -1,6 +1,8 @@
-# ESP8266_VGM_Player_PSG_YM2612
+# ESP8266 VGM Player PSG YM2612
 
 Video of this project in action can be seen here: https://youtu.be/KguRHrbGrXg
+
+More information can be found here: http://www.aidanlawrence.com/hardware-sega-genesis-video-game-music-player/
 
 A VGM (Video Game Music) player featuring the YM2612 and SN76489 PSG from the Sega Genesis. I use a NodeMCU board to host the ESP8266
 
@@ -73,11 +75,11 @@ Clock hookups and other supporting connections can be viewed in the schematic be
 ---------------------------------------------------------------------------------------------------------------
 
 # Schematic
-![Schematic](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/blob/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.sch.png)
+![Schematic](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.svg.png)
 
-[Vector version here](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/blob/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.sch.svg)
+[Vector version here](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.svg)
 
-[PDF](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/blob/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.pdf)
+[PDF](https://github.com/AidanHockey5/ESP8266_VGM_Player_PSG_YM2612/raw/master/SchematicsAndInfo/ESP8266_YM2612_SN76489_VGM_Player.pdf)
 
 I did not include the LEDs in this schematic for simplicities sake. If you want them, just wire up the LEDs on the same pins as the shift register outputs with 220 OHM resistors in series. 
 
