@@ -1,5 +1,7 @@
 # ESP8266 VGM Player PSG YM2612
 
+A new version of this project based on the Teensy 3.5 is now under development here: https://github.com/AidanHockey5/Teensy_3_5_VGM_Player_YM2612_SN76489/tree/master
+
 Video of this project in action can be seen here: https://youtu.be/KguRHrbGrXg
 
 More information can be found here: http://www.aidanlawrence.com/hardware-sega-genesis-video-game-music-player/
